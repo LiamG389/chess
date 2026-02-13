@@ -76,7 +76,7 @@ def compute_valid_moves(piece): # Takes a piece dict. Eg: {"name": piece, "squar
                     last_col = last_move['to'] % 8
                     last_row = last_move['to'] // 8
                     if abs(last_col - col) == 1 and last_row == row:
-                        valid_moves.append(last_move["piece"]["square"] - (direction * 8))
+                        valid_moves.append(last_move["piece"]["square"] + (direction * 8))
     elif piece['name'] == "rook" or piece['name'] == "bishop" or piece['name'] == "queen":
         for x, y, in directions:
              r = row + x
