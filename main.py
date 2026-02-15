@@ -1,7 +1,4 @@
 # Chess pieces: By Cburnett - Own work, CC BY-SA 3.0, https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces
-# TODO: King checks
-# TODO: En Passent
-# TODO: Stockfish Implementation with chess-api.com (model code in chess frame)
 
 import pygame
 import requests
@@ -595,10 +592,33 @@ while running:
                                     status_message = f"{current_turn.upper()} To Move."
                                 selected_piece['has_moved'] = True
                                 last_move = {"piece": selected_piece, "from": old_square, "to": i}
+                                king = find_king(current_turn)
+                                in_check = isattacked(king)
+                                legal_moves_exist = False
+                                for piece in pieces:
+                                    if piece['color'] == current_turn:
+                                        if compute_valid_moves(piece):
+                                            legal_moves_exist = True
+                                            break
+                                if not legal_moves_exist:
+                                    if in_check:
+                                        status_message = f"Checkmate!"
+                                    else:
+                                        status_message = "Stalemate!"
                                 if ai_enabled and current_turn == "black":
                                     status_message = "AI Thinking..."
                                     apply_ai_move()
                                     status_message = "WHITE To Move."
+                                for piece in pieces:
+                                    if piece['color'] == current_turn:
+                                        if compute_valid_moves(piece):
+                                            legal_moves_exist = True
+                                            break
+                                if not legal_moves_exist:
+                                    if in_check:
+                                        status_message = f"Checkmate!"
+                                    else:
+                                        status_message = "Stalemate!"
                             selected_piece = None
                  
     for square in board:
