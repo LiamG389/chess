@@ -1,4 +1,7 @@
 # Chess pieces: By Cburnett - Own work, CC BY-SA 3.0, https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces
+# TODO: King checks
+# TODO: En Passent
+# TODO: Stockfish Implementation with chess-api.com (model code in chess frame)
 
 import pygame
 import requests
@@ -8,7 +11,6 @@ from tkinter import *
 piece_name = ['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook']
 board = []
 pieces = []
-letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 selected_piece = None
 current_turn = "white"
 last_move = None
@@ -107,6 +109,77 @@ def find_king(color):
     for piece in pieces:
         if piece['name'] == "king" and piece['color'] == color:
             return piece
+
+
+# Helper to check if a color has any legal moves
+def has_legal_moves(color):
+    for piece in pieces:
+        if piece['color'] != color:
+            continue
+        raw_moves = compute_valid_moves(piece)
+        for move in raw_moves:
+            old_square = piece['square']
+            captured_piece = does_have_piece(move)
+            captured_square = move if captured_piece else None
+
+            # Handle en passant
+            is_en_passant = False
+            if piece['name'] == "pawn" and captured_piece is None and move % 8 != old_square % 8:
+                direction = -1 if piece['color'] == "white" else 1
+                captured_square = move - (8 * direction)
+                captured_piece = does_have_piece(captured_square)
+                is_en_passant = True
+
+            # Handle castling rook movement
+            rook = None
+            rook_from = None
+            rook_to = None
+            if piece['name'] == "king" and abs(move - old_square) == 2:
+                if move == 62:
+                    rook = does_have_piece(63)
+                    rook_from, rook_to = 63, 61
+                elif move == 58:
+                    rook = does_have_piece(56)
+                    rook_from, rook_to = 56, 59
+                elif move == 6:
+                    rook = does_have_piece(7)
+                    rook_from, rook_to = 7, 5
+                elif move == 2:
+                    rook = does_have_piece(0)
+                    rook_from, rook_to = 0, 3
+
+            # Simulate move
+            if captured_piece:
+                pieces.remove(captured_piece)
+
+            piece['square'] = move
+            original_has_moved = piece.get('has_moved', False)
+            piece['has_moved'] = True
+
+            if rook:
+                rook_original_square = rook['square']
+                rook_original_has_moved = rook.get('has_moved', False)
+                rook['square'] = rook_to
+                rook['has_moved'] = True
+
+            king = find_king(color)
+            in_check = isattacked(king)
+
+            # Undo move
+            piece['square'] = old_square
+            piece['has_moved'] = original_has_moved
+
+            if captured_piece:
+                pieces.append(captured_piece)
+
+            if rook:
+                rook['square'] = rook_from
+                rook['has_moved'] = rook_original_has_moved
+
+            if not in_check:
+                return True
+
+    return False
 
 def compute_valid_moves(piece): # Takes a piece dict. Eg: {"name": piece, "square" : i, 'valid_moves': [], 'id' : i, "special_moves" : special_moves, "color" : "black"}
     current_square = piece['square']
@@ -594,29 +667,20 @@ while running:
                                 last_move = {"piece": selected_piece, "from": old_square, "to": i}
                                 king = find_king(current_turn)
                                 in_check = isattacked(king)
-                                legal_moves_exist = False
-                                for piece in pieces:
-                                    if piece['color'] == current_turn:
-                                        if compute_valid_moves(piece):
-                                            legal_moves_exist = True
-                                            break
-                                if not legal_moves_exist:
+                                if not has_legal_moves(current_turn):
                                     if in_check:
-                                        status_message = f"Checkmate!"
+                                        status_message = "Checkmate!"
                                     else:
                                         status_message = "Stalemate!"
                                 if ai_enabled and current_turn == "black":
                                     status_message = "AI Thinking..."
                                     apply_ai_move()
                                     status_message = "WHITE To Move."
-                                for piece in pieces:
-                                    if piece['color'] == current_turn:
-                                        if compute_valid_moves(piece):
-                                            legal_moves_exist = True
-                                            break
-                                if not legal_moves_exist:
+                                king = find_king(current_turn)
+                                in_check = isattacked(king)
+                                if not has_legal_moves(current_turn):
                                     if in_check:
-                                        status_message = f"Checkmate!"
+                                        status_message = "Checkmate!"
                                     else:
                                         status_message = "Stalemate!"
                             selected_piece = None
